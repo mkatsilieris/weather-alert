@@ -7,7 +7,7 @@ import { pushState, type PushState } from '../push';
 import type { StatusResponse } from '../types';
 import { AlertItem } from '../components/AlertItem';
 import { ForecastChart } from '../components/ForecastChart';
-import { RadarLegend, RadarMap } from '../components/RadarMap';
+import { RainLegend, RainMap } from '../components/RainMap';
 import { StatusCard } from '../components/StatusCard';
 import { Empty, ErrorBox, InfoBox, Spinner, WarnBox } from '../components/ui';
 
@@ -93,7 +93,7 @@ export default function Dashboard() {
               {scan.rain_count} από {scan.point_count} σημεία με βροχή
             </span>
           </div>
-          <RadarMap
+          <RainMap
             scan={scan}
             home={{ lat: settings.home_lat, lon: settings.home_lon }}
             homeName={settings.home_name}
@@ -101,7 +101,7 @@ export default function Dashboard() {
             threats={ev.threats}
             minRate={scan_config.min_rate}
           />
-          <RadarLegend />
+          <RainLegend />
         </section>
       ) : (
         <section className="card">

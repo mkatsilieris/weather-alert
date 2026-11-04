@@ -1020,77 +1020,35 @@ input[type='radio'] {
   }
 }
 
-/* ---- radar map ---- */
-.radar {
+/* ---- rain map (Leaflet) ---- */
+.rain-map {
   width: 100%;
-  height: auto;
-  display: block;
-  max-height: 72vh;
+  height: min(70vw, 480px);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  z-index: 0;
 }
-.radar-area {
-  fill: var(--surface-2);
-  stroke: var(--border);
-  stroke-width: 0.6;
+.rain-map .leaflet-control-attribution {
+  font-size: 0.65rem;
 }
-.radar-ring {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 0.4;
-}
-.radar-label {
-  fill: var(--muted);
-  font-size: 4.5px;
-}
-.radar-compass {
-  fill: var(--muted);
-  font-size: 7px;
+.rain-map .home-label {
   font-weight: 700;
+  font-size: 0.85rem;
+  padding: 2px 6px;
 }
-.radar-dry {
-  fill: var(--border);
-}
-.radar-cell.light {
-  fill: #93c5fd;
-}
-.radar-cell.moderate {
-  fill: #3b82f6;
-}
-.radar-cell.heavy {
-  fill: #1e3a8a;
-}
-.radar-cell.approaching {
-  stroke: #f59e0b;
-  stroke-width: 1.2;
-}
-.radar-arrow {
-  stroke-linecap: round;
-  stroke: var(--text);
-  stroke-width: 0.7;
-  opacity: 0.8;
-}
-.radar-arrowhead {
-  fill: var(--text);
-  opacity: 0.8;
-}
-.radar-alert {
-  fill: rgb(245 158 11 / 0.08);
-  stroke: #f59e0b;
-  stroke-width: 0.5;
-  stroke-dasharray: 2 1.5;
-}
-.radar-home {
-  fill: var(--primary);
-  stroke: #fff;
-  stroke-width: 0.8;
-}
-.radar-home-label {
-  fill: var(--text);
-  font-size: 5.5px;
-  font-weight: 700;
-}
-.radar-center {
-  stroke: var(--muted);
-  stroke-width: 0.5;
+@media (prefers-color-scheme: dark) {
+  .rain-map .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
+  }
+  .rain-map .leaflet-control-zoom a,
+  .rain-map .leaflet-control-attribution,
+  .rain-map .leaflet-tooltip {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+  }
 }
 .legend {
   display: flex;
@@ -1108,7 +1066,7 @@ input[type='radio'] {
   margin-right: 5px;
 }
 .legend-dry {
-  background: var(--border);
+  background: #94a3b8;
   border-radius: 50% !important;
   width: 8px !important;
   height: 8px !important;
@@ -1228,10 +1186,4 @@ input[type='range'] {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-}
-.radar-arrow-halo {
-  stroke: var(--surface);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  opacity: 0.9;
 }
