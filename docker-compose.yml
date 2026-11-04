@@ -47,6 +47,13 @@ services:
       # the scan
       WEATHER_PROVIDER: ${WEATHER_PROVIDER:-open-meteo}
       OWM_API_KEY: ${OWM_API_KEY:-}
+      # mock provider only (WEATHER_PROVIDER=mock), see api/src/weather/mock.ts
+      MOCK_TIME_FACTOR: ${MOCK_TIME_FACTOR:-20}
+      MOCK_START_KM: ${MOCK_START_KM:-90}
+      MOCK_SPEED_KMH: ${MOCK_SPEED_KMH:-40}
+      MOCK_FROM_DEG: ${MOCK_FROM_DEG:-250}
+      MOCK_WIDTH_KM: ${MOCK_WIDTH_KM:-30}
+      MOCK_PEAK_RATE: ${MOCK_PEAK_RATE:-5}
       SCAN_CENTER_LAT: ${SCAN_CENTER_LAT:-37.9838}
       SCAN_CENTER_LON: ${SCAN_CENTER_LON:-23.7275}
       SCAN_RADIUS_KM: ${SCAN_RADIUS_KM:-100}
