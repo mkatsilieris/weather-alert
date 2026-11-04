@@ -7,7 +7,7 @@
 // secret) is printed for the .env of the server.
 //
 //   CLOUDFLARE_API_TOKEN=... node scripts/cloudflare-setup.mjs --hostname weather.ninblack.com \
-//       [--account <account id>] [--emails a@x.gr,b@y.gr | --copy-emails-from <access app id>]
+//       [--account <account id>] [--team-domain <team>.cloudflareaccess.com] [--emails a@x.gr,b@y.gr | --copy-emails-from <access app id>]
 //
 // Token scopes (My Profile > API Tokens > Create Token > Custom):
 //   Account > Cloudflare Tunnel: Edit, Account > Access: Apps and Policies: Edit, Zone > DNS: Edit
@@ -78,8 +78,16 @@ if (!record) {
 } else step(`DNS: ${hostname} already points at the tunnel`);
 
 // ---- Access application ----
-const org = await cf('GET', `/accounts/${account}/access/organizations`);
-const teamDomain = org.auth_domain;
+// The team domain (xxx.cloudflareaccess.com) needs the "Access: Organizations" scope to read; it can
+// also be passed with --team-domain (it is the same for every application of the account).
+let teamDomain = args['team-domain'];
+if (!teamDomain) {
+  try {
+    teamDomain = (await cf('GET', `/accounts/${account}/access/organizations`)).auth_domain;
+  } catch {
+    fail('Could not read the Zero Trust team domain with this token: pass --team-domain <team>.cloudflareaccess.com');
+  }
+}
 let app = (await cf('GET', `/accounts/${account}/access/apps`)).find((a) => a.domain === hostname);
 if (app) step(`Access application "${app.name}" exists (${app.id})`);
 else {
