@@ -49,22 +49,31 @@ export function RadarMap({ scan, home, homeName, alertRadiusKm, threats, minRate
       <text x={R + 3} y={2.5} textAnchor="start" className="radar-compass">Α</text>
       <text x={-R - 3} y={2.5} textAnchor="end" className="radar-compass">Δ</text>
 
+      {/* layer 1: the cells */}
       {scan.cells.map(([lat, lon, rate, speed, fromDeg], i) => {
         const p = toLocalKm(scan.center, { lat, lon });
         const cx = p.x;
         const cy = -p.y;
         if (rate < minRate) return <circle key={i} cx={cx} cy={cy} r={0.8} className="radar-dry" />;
-        const heading = ((fromDeg + 180) * Math.PI) / 180;
-        const len = s * (0.5 + Math.min(speed, 60) / 60);
-        const ax = cx + Math.sin(heading) * len;
-        const ay = cy - Math.cos(heading) * len;
         const cls = `radar-cell ${level(rate)}${approaching.has(`${lat},${lon}`) ? ' approaching' : ''}`;
         return (
-          <g key={i}>
-            <rect x={cx - s / 2 + 0.6} y={cy - s / 2 + 0.6} width={s - 1.2} height={s - 1.2} rx={1.5} className={cls}>
-              <title>{`${rate.toFixed(1)} mm/h, προς ${Math.round((fromDeg + 180) % 360)}° με ${Math.round(speed)} km/h`}</title>
-            </rect>
-            {speed > 2 && <line x1={cx} y1={cy} x2={ax} y2={ay} className="radar-arrow" markerEnd="url(#arrowhead)" />}
+          <rect key={i} x={cx - s / 2 + 0.6} y={cy - s / 2 + 0.6} width={s - 1.2} height={s - 1.2} rx={1.5} className={cls}>
+            <title>{`${rate.toFixed(1)} mm/h, προς ${Math.round((fromDeg + 180) % 360)}° με ${Math.round(speed)} km/h`}</title>
+          </rect>
+        );
+      })}
+      {/* layer 2: the arrows, drawn after every cell so that no neighbouring cell covers them */}
+      {scan.cells.map(([lat, lon, rate, speed, fromDeg], i) => {
+        if (rate < minRate || speed <= 2) return null;
+        const p = toLocalKm(scan.center, { lat, lon });
+        const heading = ((fromDeg + 180) * Math.PI) / 180;
+        const len = s * (0.5 + Math.min(speed, 60) / 60);
+        const x2 = p.x + Math.sin(heading) * len;
+        const y2 = -p.y - Math.cos(heading) * len;
+        return (
+          <g key={i} className="radar-arrow-group">
+            <line x1={p.x} y1={-p.y} x2={x2} y2={y2} className="radar-arrow-halo" />
+            <line x1={p.x} y1={-p.y} x2={x2} y2={y2} className="radar-arrow" markerEnd="url(#arrowhead)" />
           </g>
         );
       })}

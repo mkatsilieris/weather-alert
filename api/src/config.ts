@@ -32,7 +32,7 @@ export const config = {
    * read every SCAN_INTERVAL_MIN minutes from the observation provider.
    */
   scan: {
-    provider: (env.WEATHER_PROVIDER ?? 'open-meteo') as 'open-meteo' | 'openweathermap',
+    provider: (env.WEATHER_PROVIDER ?? 'open-meteo') as 'open-meteo' | 'openweathermap' | 'mock',
     center: { lat: num(env.SCAN_CENTER_LAT, 37.9838), lon: num(env.SCAN_CENTER_LON, 23.7275) },
     radiusKm: num(env.SCAN_RADIUS_KM, 100),
     spacingKm: num(env.SCAN_GRID_KM, 15),
@@ -46,6 +46,15 @@ export const config = {
     manualCooldownMin: num(env.SCAN_MANUAL_COOLDOWN_MIN, 3),
     owmApiKey: env.OWM_API_KEY ?? '',
     userAgent: env.WEATHER_USER_AGENT ?? 'weather-alert (self-hosted rain alert)',
+    /** WEATHER_PROVIDER=mock: a rain band crossing the area, for demos (see weather/mock.ts). */
+    mock: {
+      fromDeg: num(env.MOCK_FROM_DEG, 250),
+      speedKmh: num(env.MOCK_SPEED_KMH, 40),
+      timeFactor: num(env.MOCK_TIME_FACTOR, 20),
+      startKm: num(env.MOCK_START_KM, 90),
+      widthKm: num(env.MOCK_WIDTH_KM, 30),
+      peakRate: num(env.MOCK_PEAK_RATE, 5),
+    },
   },
   alerts: {
     /** At most one notification per user in this many minutes, except when it starts raining. */

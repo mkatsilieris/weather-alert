@@ -58,6 +58,7 @@ async function main() {
       },
       'features',
     );
+    if (provider === 'mock') log.warn('WEATHER_PROVIDER=mock: the rain is simulated, not real');
     startScheduler();
   });
 }

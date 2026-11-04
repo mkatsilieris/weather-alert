@@ -3,6 +3,7 @@ import type { LatLon } from '../lib/geo.js';
 import type { RainCell } from '../lib/approach.js';
 import { openMeteoProvider } from './open-meteo.js';
 import { openWeatherMapProvider } from './openweathermap.js';
+import { mockProvider } from './mock.js';
 
 /**
  * Where the current conditions of the grid points come from. A provider answers one question per
@@ -20,7 +21,9 @@ export function createProvider(): ObservationProvider {
       return openWeatherMapProvider;
     case 'open-meteo':
       return openMeteoProvider;
+    case 'mock':
+      return mockProvider;
     default:
-      throw new Error(`Unknown WEATHER_PROVIDER "${config.scan.provider}" (open-meteo | openweathermap)`);
+      throw new Error(`Unknown WEATHER_PROVIDER "${config.scan.provider}" (open-meteo | openweathermap | mock)`);
   }
 }

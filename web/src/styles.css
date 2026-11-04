@@ -1063,6 +1063,7 @@ input[type='radio'] {
   stroke-width: 1.2;
 }
 .radar-arrow {
+  stroke-linecap: round;
   stroke: var(--text);
   stroke-width: 0.7;
   opacity: 0.8;
@@ -1227,4 +1228,10 @@ input[type='range'] {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+.radar-arrow-halo {
+  stroke: var(--surface);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: 0.9;
 }
