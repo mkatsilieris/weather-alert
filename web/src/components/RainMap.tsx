@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { compassName } from '../geo';
@@ -30,7 +30,47 @@ function offset(lat: number, lon: number, headingDeg: number, km: number): L.Lat
  * home with its alert radius. Leaflet draws the overlays in real coordinates, so they stay in
  * place when the map is zoomed or dragged.
  */
-export function RainMap({ scan, home, homeName, alertRadiusKm, threats, minRate }: Props) {
+const DETAIL_KEY = 'weatheralert.mapDetail';
+const readDetail = () => {
+  try {
+    return localStorage.getItem(DETAIL_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+export function RainMap(props: Props) {
+  const [detail, setDetail] = useState(readDetail);
+  const toggle = () => {
+    const next = !detail;
+    setDetail(next);
+    try {
+      localStorage.setItem(DETAIL_KEY, next ? '1' : '0');
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  return (
+    <div className="stack">
+      <RainMapCanvas {...props} detail={detail} />
+      <div className="row between wrap">
+        <RainLegend />
+        <button type="button" className="btn btn-small" onClick={toggle}>
+          {detail ? 'Λιγότερα' : 'Λεπτομέρειες'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Light, low-contrast basemaps (CARTO, from OpenStreetMap data) so that the rain stands out. */
+const BASEMAP = {
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+};
+const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+
+function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, detail }: Props & { detail: boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const overlay = useRef<L.LayerGroup | null>(null);
@@ -39,9 +79,11 @@ export function RainMap({ scan, home, homeName, alertRadiusKm, threats, minRate 
   useEffect(() => {
     if (!el.current) return;
     const m = L.map(el.current, { scrollWheelZoom: false, attributionControl: true });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(prefersDark() ? BASEMAP.dark : BASEMAP.light, {
       maxZoom: 17,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      subdomains: 'abcd',
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(m);
     m.fitBounds(L.latLng(scan.center.lat, scan.center.lon).toBounds(scan.radius_km * 2 * 1000), { padding: [4, 4] });
     map.current = m;
@@ -66,16 +108,24 @@ export function RainMap({ scan, home, homeName, alertRadiusKm, threats, minRate 
       radius: scan.radius_km * 1000,
       color: '#64748b',
       weight: 1,
-      dashArray: '6 4',
+      opacity: 0.5,
+      dashArray: '4 6',
       fill: false,
       interactive: false,
     }).addTo(g);
+
+    // Arrows: by default only on the cells coming towards home. With none coming, one arrow on the
+    // heaviest cell is enough to show which way the rain moves (they all move with the same wind).
+    const raining = scan.cells.filter((c) => c[2] >= minRate);
+    const heaviest = raining.reduce<number[] | null>((m, c) => (!m || c[2] > m[2] ? c : m), null);
+    const wantsArrow = (lat: number, lon: number) =>
+      detail || approaching.has(`${lat},${lon}`) || (approaching.size === 0 && heaviest !== null && heaviest[0] === lat && heaviest[1] === lon);
 
     // cells
     const arrows: L.Layer[] = [];
     for (const [lat, lon, rate, speed, fromDeg] of scan.cells) {
       if (rate < minRate) {
-        L.circleMarker([lat, lon], { radius: 2, color: '#94a3b8', weight: 1, fillOpacity: 0.6, interactive: false }).addTo(g);
+        if (detail) L.circleMarker([lat, lon], { radius: 2, color: '#94a3b8', weight: 1, fillOpacity: 0.6, interactive: false }).addTo(g);
         continue;
       }
       const half = s * 0.46;
@@ -89,16 +139,17 @@ export function RainMap({ scan, home, homeName, alertRadiusKm, threats, minRate 
           [lat + dLat, lon + dLon],
         ],
         {
-          color: isApproaching ? '#f59e0b' : COLORS[level(rate)],
-          weight: isApproaching ? 3 : 1,
+          color: '#f59e0b',
+          stroke: isApproaching,
+          weight: 2,
           fillColor: COLORS[level(rate)],
-          fillOpacity: 0.7,
+          fillOpacity: 0.55,
         },
       )
         .bindTooltip(`${rate.toFixed(1)} mm/h, προς ${compassName(heading)} με ${Math.round(speed)} km/h`)
         .addTo(g);
 
-      if (speed > 2) {
+      if (speed > 2 && wantsArrow(lat, lon)) {
         const len = s * (0.5 + Math.min(speed, 60) / 60);
         const tip = offset(lat, lon, heading, len);
         const left = offset(tip[0], tip[1], heading + 150, len * 0.28);
@@ -124,17 +175,14 @@ export function RainMap({ scan, home, homeName, alertRadiusKm, threats, minRate 
     L.circleMarker([home.lat, home.lon], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#0369a1', fillOpacity: 1 })
       .bindTooltip(homeName, { permanent: true, direction: 'top', offset: [0, -8], className: 'home-label' })
       .addTo(g);
-  }, [scan, home, homeName, alertRadiusKm, threats, minRate]);
+  }, [scan, home, homeName, alertRadiusKm, threats, minRate, detail]);
 
   return <div ref={el} className="rain-map" role="img" aria-label="Χάρτης βροχής γύρω από την περιοχή σάρωσης" />;
 }
 
-export function RainLegend() {
+function RainLegend() {
   return (
     <div className="legend">
-      <span>
-        <i className="legend-dry" /> χωρίς βροχή
-      </span>
       <span>
         <i className="legend-light" /> ασθενής
       </span>

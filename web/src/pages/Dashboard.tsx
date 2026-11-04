@@ -7,7 +7,7 @@ import { pushState, type PushState } from '../push';
 import type { StatusResponse } from '../types';
 import { AlertItem } from '../components/AlertItem';
 import { ForecastChart } from '../components/ForecastChart';
-import { RainLegend, RainMap } from '../components/RainMap';
+import { RainMap } from '../components/RainMap';
 import { StatusCard } from '../components/StatusCard';
 import { Empty, ErrorBox, InfoBox, Spinner, WarnBox } from '../components/ui';
 
@@ -101,7 +101,6 @@ export default function Dashboard() {
             threats={ev.threats}
             minRate={scan_config.min_rate}
           />
-          <RainLegend />
         </section>
       ) : (
         <section className="card">
