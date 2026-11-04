@@ -1030,6 +1030,9 @@ input[type='radio'] {
   background: var(--surface-2);
   z-index: 0;
 }
+.rain-map .leaflet-tile-pane {
+  filter: grayscale(0.85) brightness(1.08) contrast(0.85);
+}
 .rain-map .leaflet-control-attribution {
   font-size: 0.65rem;
 }
@@ -1039,6 +1042,9 @@ input[type='radio'] {
   padding: 2px 6px;
 }
 @media (prefers-color-scheme: dark) {
+  .rain-map .leaflet-tile-pane {
+    filter: grayscale(0.85) invert(1) hue-rotate(180deg) brightness(0.8) contrast(0.85);
+  }
   .rain-map .leaflet-control-zoom a,
   .rain-map .leaflet-control-attribution,
   .rain-map .leaflet-tooltip {

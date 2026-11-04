@@ -63,12 +63,11 @@ export function RainMap(props: Props) {
   );
 }
 
-/** Light, low-contrast basemaps (CARTO, from OpenStreetMap data) so that the rain stands out. */
-const BASEMAP = {
-  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-};
-const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+/**
+ * OpenStreetMap tiles: free, no key, roads and Greek place names. They are toned down in CSS
+ * (.rain-map .leaflet-tile-pane) to an almost grey map so that the rain stands out.
+ */
+const BASEMAP = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, detail }: Props & { detail: boolean }) {
   const el = useRef<HTMLDivElement>(null);
@@ -79,11 +78,9 @@ function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, 
   useEffect(() => {
     if (!el.current) return;
     const m = L.map(el.current, { scrollWheelZoom: false, attributionControl: true });
-    L.tileLayer(prefersDark() ? BASEMAP.dark : BASEMAP.light, {
+    L.tileLayer(BASEMAP, {
       maxZoom: 17,
-      subdomains: 'abcd',
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(m);
     m.fitBounds(L.latLng(scan.center.lat, scan.center.lon).toBounds(scan.radius_km * 2 * 1000), { padding: [4, 4] });
     map.current = m;
