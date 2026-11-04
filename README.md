@@ -138,12 +138,20 @@ ssh weather-pi status / logs api / restart
 
 ## Πρόσβαση από το Internet (Cloudflare Tunnel + Access)
 
-Όπως στο Bill Split: ένα δεύτερο tunnel (ή δεύτερο public hostname στο ίδιο tunnel, π.χ.
-`weather.ninblack.com → http://web:80` του project `weather-alert`), μια Access application `Weather Alert` με
-policy emails, και στο `cloudflare-access.env` τα `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD` της νέας εφαρμογής ώστε το
-login να γίνεται αυτόματα από το Access. Στο `.env`: `APP_URL=https://weather.ninblack.com`,
-`COMPOSE_PROFILES=internet`, `TUNNEL_TOKEN=…`. Τα push notifications θέλουν HTTPS, άρα από το Internet
-δουλεύουν μέσω του tunnel· στο τοπικό δίκτυο δουλεύουν μόνο σε `http://localhost` ή με HTTPS.
+Όπως στο Bill Split: δικό του tunnel `weather-alert` με public hostname `weather.ninblack.com → http://web:80`,
+το CNAME, και μια Access application `Weather Alert` με policy emails. Όλα αυτά τα στήνει το script με ένα
+API token (scopes: `Cloudflare Tunnel: Edit`, `Access: Apps and Policies: Edit`, `DNS: Edit` στη ζώνη):
+
+```powershell
+$env:CLOUDFLARE_API_TOKEN = "..."
+node scripts/cloudflare-setup.mjs --hostname weather.ninblack.com --copy-emails-from <id της Access app του Bill Split>
+# ή --emails a@example.com,b@example.com
+```
+
+Γράφει `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD` στο `cloudflare-access.env` (ώστε το login να γίνεται αυτόματα από το
+Access) και τυπώνει το `TUNNEL_TOKEN`. Στο `.env` του **Pi** μπαίνουν: `APP_URL=https://weather.ninblack.com`,
+`COMPOSE_PROFILES=internet`, `TUNNEL_TOKEN=…`, και μετά `scripts/deploy.ps1`. Τα push notifications θέλουν
+HTTPS, άρα από το Internet δουλεύουν μέσω του tunnel· στο τοπικό δίκτυο δουλεύουν μόνο σε `http://localhost`.
 
 ## Ανάπτυξη (χωρίς docker)
 
