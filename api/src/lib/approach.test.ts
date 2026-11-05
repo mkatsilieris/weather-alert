@@ -74,3 +74,16 @@ test('evaluate: a raining grid cell on top of home counts as raining at home', (
   assert.equal(evaluate([cell(3, 2, 270)], home, withCells).status, 'raining');
   assert.equal(evaluate([cell(0, 0, 270, 40, 0.1)], home, withCells).status, 'clear'); // drizzle below minRate
 });
+
+test('a cell with its own size: the square, not a fixed radius, decides what it covers', () => {
+  const small = (x: number, y: number, sizeKm: number): RainCell => ({ ...cell(x, y, 270), sizeKm });
+  // 3 km east and 2 km north of home: inside a 15 km square, outside a 5 km one
+  assert.equal(evaluate([small(3, 2, 15)], home, opts).status, 'raining');
+  assert.notEqual(evaluate([small(3, 2, 5)], home, opts).status, 'raining');
+  // a corner of the square covers home even though the centre is further than half its side
+  assert.equal(evaluate([small(2.2, 2.2, 5)], home, opts).status, 'raining');
+  // the cell size widens the target circle: 10 km alert radius + 2.5 km half-square
+  const t = analyseCell(small(-40, 0, 5), home, opts);
+  assert.equal(t.sizeKm, 5);
+  assert.ok(t.etaMin !== null && Math.abs(t.etaMin - ((40 - 12.5) / 40) * 60) < 1, `got ${t.etaMin}`);
+});

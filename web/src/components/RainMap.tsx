@@ -24,6 +24,12 @@ function offset(lat: number, lon: number, headingDeg: number, km: number): L.Lat
   return [lat + (km * Math.cos(h)) / KM_PER_DEG_LAT, lon + (km * Math.sin(h)) / kmPerDegLon(lat)];
 }
 
+/** Side of a cell's square, km: stored with the cell since the grid got denser near the centre. */
+const sizeOf = (c: number[], fallback: number) => (c[5] > 0 ? c[5] : fallback);
+/** Distance between two [lat, lon, ...] cells, km (flat, fine at this scale). */
+const flatKm = (a: number[], b: number[]) =>
+  Math.hypot((a[0] - b[0]) * KM_PER_DEG_LAT, (a[1] - b[1]) * kmPerDegLon((a[0] + b[0]) / 2));
+
 /**
  * The scan area on an OpenStreetMap background: every grid point as a dot (dry) or a square
  * (raining, darker = heavier) with an arrow showing where the rain is heading, and the person's
@@ -97,7 +103,6 @@ function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, 
     const g = overlay.current;
     if (!g) return;
     g.clearLayers();
-    const s = scan.spacing_km;
     const approaching = new Set(threats.filter((t) => t.approaching).map((t) => `${t.lat},${t.lon}`));
 
     // scan area
@@ -111,24 +116,17 @@ function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, 
       interactive: false,
     }).addTo(g);
 
-    // Arrows: by default only on the cells coming towards home. With none coming, one arrow on the
-    // heaviest cell is enough to show which way the rain moves (they all move with the same wind).
+    // cells: each one is a square of its own size (smaller near the centre, where the grid is denser)
     const raining = scan.cells.filter((c) => c[2] >= minRate);
-    const heaviest = raining.reduce<number[] | null>((m, c) => (!m || c[2] > m[2] ? c : m), null);
-    const wantsArrow = (lat: number, lon: number) =>
-      detail || approaching.has(`${lat},${lon}`) || (approaching.size === 0 && heaviest !== null && heaviest[0] === lat && heaviest[1] === lon);
-
-    // cells
-    const arrows: L.Layer[] = [];
-    for (const [lat, lon, rate, speed, fromDeg] of scan.cells) {
+    for (const c of scan.cells) {
+      const [lat, lon, rate, speed, fromDeg] = c;
       if (rate < minRate) {
         if (detail) L.circleMarker([lat, lon], { radius: 2, color: '#94a3b8', weight: 1, fillOpacity: 0.6, interactive: false }).addTo(g);
         continue;
       }
-      const half = s * 0.46;
+      const half = sizeOf(c, scan.spacing_km) * 0.46;
       const dLat = half / KM_PER_DEG_LAT;
       const dLon = half / kmPerDegLon(lat);
-      const isApproaching = approaching.has(`${lat},${lon}`);
       const heading = (fromDeg + 180) % 360;
       L.rectangle(
         [
@@ -137,7 +135,7 @@ function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, 
         ],
         {
           color: '#f59e0b',
-          stroke: isApproaching,
+          stroke: approaching.has(`${lat},${lon}`),
           weight: 2,
           fillColor: COLORS[level(rate)],
           fillOpacity: 0.55,
@@ -145,19 +143,33 @@ function RainMapCanvas({ scan, home, homeName, alertRadiusKm, threats, minRate, 
       )
         .bindTooltip(`${rate.toFixed(1)} mm/h, προς ${compassName(heading)} με ${Math.round(speed)} km/h`)
         .addTo(g);
-
-      if (speed > 2 && wantsArrow(lat, lon)) {
-        const len = s * (0.5 + Math.min(speed, 60) / 60);
-        const tip = offset(lat, lon, heading, len);
-        const left = offset(tip[0], tip[1], heading + 150, len * 0.28);
-        const right = offset(tip[0], tip[1], heading - 150, len * 0.28);
-        const path: L.LatLngTuple[] = [[lat, lon], tip, left, tip, right];
-        arrows.push(L.polyline(path, { color: '#ffffff', weight: 5, opacity: 0.9, interactive: false, lineCap: 'round', lineJoin: 'round' }));
-        arrows.push(L.polyline(path, { color: '#0f172a', weight: 2, interactive: false, lineCap: 'round', lineJoin: 'round' }));
-      }
     }
-    // arrows above every cell, so that no neighbouring cell covers them
-    for (const a of arrows) a.addTo(g);
+
+    // Arrows, drawn above every cell so that no neighbouring cell covers them. By default only on
+    // the cells coming towards home; with none coming, one on the heaviest cell is enough to show
+    // which way the rain moves (they all move with the same wind). Small cells sit close together,
+    // so an arrow is skipped when another one already starts nearby.
+    const candidates = raining
+      .filter((c) => c[3] > 2)
+      .map((c) => ({ c, near: approaching.has(`${c[0]},${c[1]}`) }))
+      .sort((a, b) => Number(b.near) - Number(a.near) || b.c[2] - a.c[2]);
+    const wanted = detail ? candidates : candidates.filter((x) => x.near);
+    if (!detail && wanted.length === 0 && candidates.length > 0) wanted.push(candidates[0]);
+    const minGapKm = detail ? 9 : 14;
+    const drawn: number[][] = [];
+    for (const { c } of wanted) {
+      const [lat, lon, , speed, fromDeg] = c;
+      if (drawn.some((d) => flatKm(d, c) < minGapKm)) continue;
+      drawn.push(c);
+      const heading = (fromDeg + 180) % 360;
+      const len = 7.5 + (15 * Math.min(speed, 60)) / 60;
+      const tip = offset(lat, lon, heading, len);
+      const left = offset(tip[0], tip[1], heading + 150, len * 0.28);
+      const right = offset(tip[0], tip[1], heading - 150, len * 0.28);
+      const path: L.LatLngTuple[] = [[lat, lon], tip, left, tip, right];
+      L.polyline(path, { color: '#ffffff', weight: 5, opacity: 0.9, interactive: false, lineCap: 'round', lineJoin: 'round' }).addTo(g);
+      L.polyline(path, { color: '#0f172a', weight: 2, interactive: false, lineCap: 'round', lineJoin: 'round' }).addTo(g);
+    }
 
     // home
     L.circle([home.lat, home.lon], {

@@ -8,6 +8,8 @@ export interface RainCell extends LatLon {
   steeringKmh: number;
   /** direction the steering wind blows FROM (meteorological convention) */
   steeringFromDeg: number;
+  /** side of the grid square the point stands for, km (missing: 2 x ApproachOptions.cellRadiusKm) */
+  sizeKm?: number;
 }
 
 export interface ApproachOptions {
@@ -17,7 +19,7 @@ export interface ApproachOptions {
   horizonMin: number;
   /** mm/h from which a grid point counts as raining */
   minRate: number;
-  /** half the grid spacing: a cell stands for a square of that half-size around it (km) */
+  /** half the grid spacing, for cells that do not carry their own sizeKm (km) */
   cellRadiusKm: number;
 }
 
@@ -39,6 +41,8 @@ export interface Threat {
   etaMin: number | null;
   /** etaMin within the horizon */
   approaching: boolean;
+  /** side of the grid square, km */
+  sizeKm: number;
 }
 
 export type RainStatus = 'raining' | 'approaching' | 'forecast' | 'nearby' | 'clear';
@@ -77,7 +81,8 @@ export function analyseCell(cell: RainCell, home: LatLon, opts: ApproachOptions)
   const headingDeg = (cell.steeringFromDeg + 180) % 360;
   const heading = (headingDeg * Math.PI) / 180;
   const v = { x: cell.steeringKmh * Math.sin(heading), y: cell.steeringKmh * Math.cos(heading) };
-  const r = opts.alertRadiusKm + opts.cellRadiusKm;
+  const half = halfSize(cell, opts);
+  const r = opts.alertRadiusKm + half;
 
   const distanceKm = Math.hypot(p.x, p.y);
   const a = v.x * v.x + v.y * v.y;
@@ -112,7 +117,17 @@ export function analyseCell(cell: RainCell, home: LatLon, opts: ApproachOptions)
     closestKm,
     etaMin,
     approaching: etaMin !== null && etaMin <= opts.horizonMin,
+    sizeKm: half * 2,
   };
+}
+
+const halfSize = (cell: RainCell, opts: ApproachOptions) => (cell.sizeKm !== undefined ? cell.sizeKm / 2 : opts.cellRadiusKm);
+
+/** Is home inside the grid square of this cell? */
+function covers(cell: RainCell, home: LatLon, opts: ApproachOptions): boolean {
+  const p = toLocalKm(home, cell);
+  const half = halfSize(cell, opts);
+  return Math.abs(p.x) <= half && Math.abs(p.y) <= half;
 }
 
 /** Combines the raining grid cells and the home point forecast into one status for a person. */
@@ -133,7 +148,7 @@ export function evaluate(
   const approaching = threats.filter((t) => t.approaching);
 
   // Rain at home: what the point forecast says now, or the grid cell that covers home.
-  const onTop = threats.find((t) => t.distanceKm <= opts.cellRadiusKm);
+  const onTop = raining.filter((c) => covers(c, home, opts)).reduce<RainCell | null>((m, c) => (!m || c.rate > m.rate ? c : m), null);
   const rateNow = Math.max(homeNow?.rateNow ?? 0, onTop?.rate ?? 0);
   const forecastEtaMin = homeNow?.forecastEtaMin ?? null;
 

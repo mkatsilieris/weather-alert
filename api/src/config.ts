@@ -36,6 +36,14 @@ export const config = {
     center: { lat: num(env.SCAN_CENTER_LAT, 37.9838), lon: num(env.SCAN_CENTER_LON, 23.7275) },
     radiusKm: num(env.SCAN_RADIUS_KM, 100),
     spacingKm: num(env.SCAN_GRID_KM, 15),
+    /**
+     * A denser grid near the centre: every square whose centre is within SCAN_DENSE_KM of the scan
+     * centre is split into SCAN_DENSE_SPLIT x SCAN_DENSE_SPLIT smaller ones (15 km / 3 = 5 km).
+     * The weather models behind Open-Meteo resolve about 5 km around Athens, so going finer than
+     * that only repeats the same values. SCAN_DENSE_KM=0 turns it off.
+     */
+    denseKm: num(env.SCAN_DENSE_KM, 25),
+    denseSplit: Math.max(1, Math.round(num(env.SCAN_DENSE_SPLIT, 3))),
     intervalMin: num(env.SCAN_INTERVAL_MIN, 60),
     /** Precipitation (mm/h) from which a grid point counts as "raining". */
     minRate: num(env.RAIN_MIN_RATE, 0.2),
@@ -69,3 +77,15 @@ export const config = {
   /** Where a new account watches until it picks its own place. */
   defaultHome: { name: 'Νέος Κόσμος, Αθήνα', lat: 37.9597, lon: 23.7276 },
 };
+
+/** The grid as configured: outer spacing, and the spacing and reach of the dense part near the centre. */
+export function gridConfig() {
+  const { spacingKm, denseKm, denseSplit } = config.scan;
+  const dense = denseKm > 0 && denseSplit > 1;
+  return {
+    spacingKm,
+    denseKm: dense ? denseKm : 0,
+    fineKm: dense ? Math.round((spacingKm / denseSplit) * 100) / 100 : spacingKm,
+    dense: { radiusKm: dense ? denseKm : 0, split: dense ? denseSplit : 1 },
+  };
+}
