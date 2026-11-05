@@ -168,7 +168,11 @@ export default function Settings() {
             </Field>
           </div>
           <p className={`small ${outside ? 'neg' : 'muted'}`}>
-            {Math.round(distance)} km από το κέντρο της σάρωσης (παρακολουθούνται {resp.scan.radius_km} km γύρω του, ανά {resp.scan.spacing_km} km, κάθε{' '}
+            {Math.round(distance)} km από το κέντρο της σάρωσης (παρακολουθούνται {resp.scan.radius_km} km γύρω του, ανά {resp.scan.spacing_km} km
+            {resp.scan.dense_km && resp.scan.fine_km && resp.scan.fine_km < resp.scan.spacing_km
+              ? ` και ανά ${resp.scan.fine_km} km ως ${resp.scan.dense_km} km από το κέντρο`
+              : ''}
+            , κάθε{' '}
             {minutes(resp.scan.interval_min)}).
           </p>
         </section>

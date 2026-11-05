@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { pool } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { HttpError } from '../errors.js';
-import { config } from '../config.js';
+import { config, gridConfig } from '../config.js';
 import { loadSettings } from '../settings.js';
 import { evaluateUser, latestScan, nextScanAt, runScan, scanInProgress, type ScanRow, type StatusRow } from '../scanner.js';
 
@@ -54,7 +54,7 @@ async function buildStatus(userId: number) {
     scan_failed: failedSince,
     scan_in_progress: scanInProgress(),
     next_scan_at: nextScanAt()?.toISOString() ?? null,
-    scan_config: { center, radius_km: radiusKm, spacing_km: spacingKm, interval_min: intervalMin, provider, min_rate: minRate, manual_cooldown_min: manualCooldownMin },
+    scan_config: { center, radius_km: radiusKm, spacing_km: spacingKm, dense_km: gridConfig().denseKm, fine_km: gridConfig().fineKm, interval_min: intervalMin, provider, min_rate: minRate, manual_cooldown_min: manualCooldownMin },
   };
 }
 

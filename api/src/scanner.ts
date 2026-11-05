@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config, gridConfig } from './config.js';
 import { pool } from './db.js';
 import { log } from './log.js';
 import { gridPoints } from './lib/geo.js';
@@ -27,7 +27,7 @@ export interface ScanRow {
   point_count: number;
   rain_count: number;
   max_rate: number;
-  /** [[lat, lon, rate, steeringKmh, steeringFromDeg], ...] */
+  /** [[lat, lon, rate, steeringKmh, steeringFromDeg, sizeKm], ...] (older scans have no sizeKm) */
   cells: number[][];
   duration_ms: number;
   error: string | null;
@@ -56,7 +56,14 @@ let provider: ObservationProvider | null = null;
 const getProvider = () => (provider ??= createProvider());
 
 export const cellsOf = (scan: ScanRow): RainCell[] =>
-  scan.cells.map(([lat, lon, rate, steeringKmh, steeringFromDeg]) => ({ lat, lon, rate, steeringKmh, steeringFromDeg }));
+  scan.cells.map(([lat, lon, rate, steeringKmh, steeringFromDeg, sizeKm]) => ({
+    lat,
+    lon,
+    rate,
+    steeringKmh,
+    steeringFromDeg,
+    ...(sizeKm ? { sizeKm } : {}),
+  }));
 
 export async function latestScan(): Promise<ScanRow | null> {
   const { rows } = await pool.query<ScanRow>('SELECT * FROM scans WHERE error IS NULL ORDER BY scanned_at DESC LIMIT 1');
@@ -79,12 +86,15 @@ export const scanInProgress = (): boolean => inFlight !== null;
 async function doScan(reason: ScanReason): Promise<ScanRow> {
   const started = Date.now();
   const { center, radiusKm, spacingKm, minRate } = config.scan;
-  const points = gridPoints(center, radiusKm, spacingKm);
+  const points = gridPoints(center, radiusKm, spacingKm, gridConfig().dense);
   const prov = getProvider();
 
   let cells: RainCell[];
   try {
-    cells = await prov.observe(points);
+    const observed = await prov.observe(points);
+    if (observed.length !== points.length) throw new Error(`${prov.name} returned ${observed.length} points for ${points.length} requested`);
+    // providers answer in the order they were asked; each point keeps the size of its square
+    cells = observed.map((c, i) => ({ ...c, sizeKm: points[i].sizeKm }));
   } catch (err) {
     const message = (err as Error).message;
     await pool.query(
@@ -98,7 +108,7 @@ async function doScan(reason: ScanReason): Promise<ScanRow> {
 
   const raining = cells.filter((c) => c.rate >= minRate);
   const maxRate = raining.reduce((m, c) => Math.max(m, c.rate), 0);
-  const packed = cells.map((c) => [c.lat, c.lon, round2(c.rate), c.steeringKmh, c.steeringFromDeg]);
+  const packed = cells.map((c) => [c.lat, c.lon, round2(c.rate), c.steeringKmh, c.steeringFromDeg, c.sizeKm ?? spacingKm]);
   const { rows } = await pool.query<ScanRow>(
     `INSERT INTO scans (provider, reason, center_lat, center_lon, radius_km, spacing_km, point_count, rain_count, max_rate, cells, duration_ms)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,

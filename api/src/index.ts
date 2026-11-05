@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { config } from './config.js';
+import { config, gridConfig } from './config.js';
 import { accessEnabled } from './access.js';
 import { mailConfigured } from './mail.js';
 import { migrate, waitForDb } from './db.js';
@@ -43,6 +43,7 @@ async function main() {
   app.listen(config.port, () => {
     log.info({ port: config.port, env: config.nodeEnv, logLevel: config.logLevel }, 'api listening');
     const { center, radiusKm, spacingKm, intervalMin, provider } = config.scan;
+    const grid = gridConfig();
     // One line that answers "is it configured?" without reading .env on the server.
     log.info(
       {
@@ -50,7 +51,9 @@ async function main() {
         center,
         radiusKm,
         spacingKm,
-        gridPoints: gridPoints(center, radiusKm, spacingKm).length,
+        denseKm: grid.denseKm,
+        fineKm: grid.fineKm,
+        gridPoints: gridPoints(center, radiusKm, spacingKm, grid.dense).length,
         everyMin: intervalMin,
         cloudflareAccessSso: accessEnabled,
         smtp: mailConfigured,

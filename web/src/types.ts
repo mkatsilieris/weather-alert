@@ -73,6 +73,10 @@ export interface ScanConfig {
   center: LatLon;
   radius_km: number;
   spacing_km: number;
+  /** squares within this distance of the centre are split ... */
+  dense_km?: number;
+  /** ... into squares of this size (km) */
+  fine_km?: number;
   interval_min: number;
   provider: string;
 }
@@ -94,7 +98,7 @@ export interface Scan {
   point_count: number;
   rain_count: number;
   max_rate: number;
-  /** [[lat, lon, rate mm/h, steering km/h, steering from deg], ...] */
+  /** [[lat, lon, rate mm/h, steering km/h, steering from deg, square size km], ...] (older scans have no size) */
   cells: number[][];
   duration_ms: number;
 }

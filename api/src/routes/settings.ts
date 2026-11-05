@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { pool } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { badRequest } from '../errors.js';
-import { config } from '../config.js';
+import { config, gridConfig } from '../config.js';
 import { haversineKm } from '../lib/geo.js';
 import { mailConfigured } from '../mail.js';
 import { fetchJson } from '../weather/http.js';
@@ -116,10 +116,11 @@ settingsRouter.get('/geocode', async (req, res) => {
 
 function envelope(settings: Settings) {
   const { center, radiusKm, spacingKm, intervalMin, provider } = config.scan;
+  const { denseKm, fineKm } = gridConfig();
   return {
     settings,
     mail_configured: mailConfigured,
-    scan: { center, radius_km: radiusKm, spacing_km: spacingKm, interval_min: intervalMin, provider },
+    scan: { center, radius_km: radiusKm, spacing_km: spacingKm, dense_km: denseKm, fine_km: fineKm, interval_min: intervalMin, provider },
   };
 }
 

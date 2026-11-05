@@ -41,3 +41,20 @@ test('grid: points fill the circle, include the centre and stay inside the radiu
   assert.ok(pts.some((p) => Math.abs(p.lat - athens.lat) < 1e-3 && Math.abs(p.lon - athens.lon) < 1e-3));
   for (const p of pts) assert.ok(haversineKm(athens, p) <= 101, `${p.lat},${p.lon} is outside`);
 });
+
+test('grid: the squares near the centre are split into smaller ones', () => {
+  const plain = gridPoints(athens, 100, 15);
+  const pts = gridPoints(athens, 100, 15, { radiusKm: 25, split: 3 });
+  const fine = pts.filter((p) => p.sizeKm === 5);
+  const coarse = pts.filter((p) => p.sizeKm === 15);
+  // the 3x3 block of 15 km squares around the centre (their centres are within 21.2 km), each split in 9
+  assert.equal(fine.length, 81);
+  assert.equal(coarse.length, plain.length - 9);
+  assert.equal(pts.length, fine.length + coarse.length);
+  // the centre is still a point, every point is distinct, the fine ones stay near the centre
+  assert.ok(fine.some((p) => Math.abs(p.lat - athens.lat) < 1e-3 && Math.abs(p.lon - athens.lon) < 1e-3));
+  assert.equal(new Set(pts.map((p) => `${p.lat},${p.lon}`)).size, pts.length);
+  for (const p of fine) assert.ok(haversineKm(athens, p) <= 25 + 15, `${p.lat},${p.lon} is too far`);
+  // without a dense core every square keeps the outer size
+  assert.ok(plain.every((p) => p.sizeKm === 15));
+});
