@@ -8,7 +8,6 @@ import { errorHandler } from './errors.js';
 import { log, requestLogger } from './log.js';
 import { initPush } from './notify.js';
 import { startScheduler } from './scanner.js';
-import { gridPoints } from './lib/geo.js';
 import { authRouter } from './routes/auth.js';
 import { settingsRouter } from './routes/settings.js';
 import { pushRouter } from './routes/push.js';
@@ -51,9 +50,8 @@ async function main() {
         center,
         radiusKm,
         spacingKm,
-        denseKm: grid.denseKm,
+        denseAroundHomesKm: grid.denseKm,
         fineKm: grid.fineKm,
-        gridPoints: gridPoints(center, radiusKm, spacingKm, grid.dense).length,
         everyMin: intervalMin,
         cloudflareAccessSso: accessEnabled,
         smtp: mailConfigured,

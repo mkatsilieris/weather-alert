@@ -2,7 +2,7 @@ import { config } from '../config.js';
 import type { LatLon } from '../lib/geo.js';
 import type { RainCell } from '../lib/approach.js';
 import type { ObservationProvider } from './provider.js';
-import { chunk, fetchJson } from './http.js';
+import { chunk, fetchJson, mapLimit } from './http.js';
 
 /**
  * Open-Meteo (https://open-meteo.com): free, no key, one request for many points. Every grid
@@ -34,6 +34,8 @@ interface Point {
 }
 
 const BATCH = 50;
+/** Open-Meteo answers "Too many concurrent requests" (429) when all batches go at once. */
+const CONCURRENCY = 2;
 
 async function observeBatch(points: LatLon[]): Promise<RainCell[]> {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -74,7 +76,7 @@ async function observeBatch(points: LatLon[]): Promise<RainCell[]> {
 export const openMeteoProvider: ObservationProvider = {
   name: 'open-meteo',
   async observe(points) {
-    const batches = await Promise.all(chunk(points, BATCH).map(observeBatch));
+    const batches = await mapLimit(chunk(points, BATCH), CONCURRENCY, observeBatch);
     return batches.flat();
   },
 };

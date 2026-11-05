@@ -64,9 +64,11 @@ export interface GridPoint extends LatLon {
   sizeKm: number;
 }
 
-/** The part of the grid near the centre that is sampled more densely. */
+/** The parts of the grid that are sampled more densely: around the places people watch. */
 export interface DenseCore {
-  /** squares whose centre is this close to the scan centre are split ... */
+  /** the places (the homes of the users) */
+  around: LatLon[];
+  /** squares whose centre is this close to one of the places are split ... */
   radiusKm: number;
   /** ... into split x split smaller squares (1 = not split) */
   split: number;
@@ -74,15 +76,15 @@ export interface DenseCore {
 
 /**
  * Sample points of the scan: a square grid with `spacingKm` between points, clipped to the circle
- * of `radiusKm` around `center`. Near the centre (`dense`) every square is split into smaller
- * ones, so the city itself is not a single square. With an odd split the centre itself stays one of
- * the points.
+ * of `radiusKm` around `center`. Near the places in `dense` every square is split into smaller
+ * ones, so a home is not lost in a single 15 km square. Two places close together share their
+ * squares, so nothing is sampled twice.
  */
 export function gridPoints(
   center: LatLon,
   radiusKm: number,
   spacingKm: number,
-  dense: DenseCore = { radiusKm: 0, split: 1 },
+  dense: DenseCore = { around: [], radiusKm: 0, split: 1 },
 ): GridPoint[] {
   if (spacingKm <= 0 || radiusKm <= 0) throw new Error('radius and spacing must be positive');
   const n = Math.ceil(radiusKm / spacingKm);
@@ -92,13 +94,15 @@ export function gridPoints(
     points.push({ lat: round4(p.lat), lon: round4(p.lon), sizeKm: round4(sizeKm) });
   };
   const split = Math.max(1, Math.round(dense.split));
+  const places = split > 1 && dense.radiusKm > 0 ? dense.around.map((p) => toLocalKm(center, p)) : [];
+  const isDense = (x: number, y: number) => places.some((p) => Math.hypot(x - p.x, y - p.y) <= dense.radiusKm + 1e-9);
   for (let j = n; j >= -n; j--) {
     for (let i = -n; i <= n; i++) {
       const x = i * spacingKm;
       const y = j * spacingKm;
       const r = Math.hypot(x, y);
       if (r > radiusKm + 1e-9) continue;
-      if (split > 1 && r <= dense.radiusKm + 1e-9) {
+      if (isDense(x, y)) {
         const s = spacingKm / split;
         const mid = (split - 1) / 2;
         for (let b = split - 1; b >= 0; b--) for (let a = 0; a < split; a++) add(x + (a - mid) * s, y + (b - mid) * s, s);

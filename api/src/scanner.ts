@@ -1,7 +1,7 @@
 import { config, gridConfig } from './config.js';
 import { pool } from './db.js';
 import { log } from './log.js';
-import { gridPoints } from './lib/geo.js';
+import { gridPoints, type LatLon } from './lib/geo.js';
 import { evaluate, type Evaluation, type RainCell, type RainStatus } from './lib/approach.js';
 import { createProvider, type ObservationProvider } from './weather/provider.js';
 import { fetchHomeForecast, forecastEtaMin, type HomeForecast } from './weather/forecast.js';
@@ -86,7 +86,12 @@ export const scanInProgress = (): boolean => inFlight !== null;
 async function doScan(reason: ScanReason): Promise<ScanRow> {
   const started = Date.now();
   const { center, radiusKm, spacingKm, minRate } = config.scan;
-  const points = gridPoints(center, radiusKm, spacingKm, gridConfig().dense);
+  const grid = gridConfig();
+  const homes = await watchedPlaces();
+  const points = gridPoints(center, radiusKm, spacingKm, { around: homes, radiusKm: grid.denseKm, split: grid.split });
+  // Open-Meteo allows about 10,000 points a day for non-commercial use.
+  const perDay = points.length * Math.ceil((24 * 60) / Math.max(1, config.scan.intervalMin));
+  if (perDay > 9000) log.warn({ points: points.length, perDay, homes: homes.length }, 'the grid is getting close to the daily API limit');
   const prov = getProvider();
 
   let cells: RainCell[];
@@ -126,6 +131,25 @@ async function doScan(reason: ScanReason): Promise<ScanRow> {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Every user's home (a user without settings yet watches the default place). */
+async function watchedPlaces(): Promise<LatLon[]> {
+  const { rows } = await pool.query<{ lat: number | null; lon: number | null }>(
+    'SELECT s.home_lat AS lat, s.home_lon AS lon FROM users u LEFT JOIN user_settings s ON s.user_id = u.id',
+  );
+  return rows.map((r) => (r.lat !== null && r.lon !== null ? { lat: r.lat, lon: r.lon } : config.defaultHome));
+}
+
+/** Scans now unless the last scan is younger than the manual cooldown. Returns whether it started one. */
+export async function scanSoon(reason: ScanReason): Promise<boolean> {
+  if (inFlight) return false;
+  const last = await latestScan();
+  if (last && Date.now() - new Date(last.scanned_at).getTime() < config.scan.manualCooldownMin * 60_000) return false;
+  runScan(reason).catch(() => {
+    /* already logged */
+  });
+  return true;
+}
 
 /** Evaluates (and notifies) every account against the scan. One person's failure never stops the others. */
 export async function evaluateAll(scan: ScanRow): Promise<void> {

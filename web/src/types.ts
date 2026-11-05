@@ -73,7 +73,7 @@ export interface ScanConfig {
   center: LatLon;
   radius_km: number;
   spacing_km: number;
-  /** squares within this distance of the centre are split ... */
+  /** squares within this distance of a user's home are split ... */
   dense_km?: number;
   /** ... into squares of this size (km) */
   fine_km?: number;
