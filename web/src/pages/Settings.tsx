@@ -170,7 +170,7 @@ export default function Settings() {
           <p className={`small ${outside ? 'neg' : 'muted'}`}>
             {Math.round(distance)} km από το κέντρο της σάρωσης (παρακολουθούνται {resp.scan.radius_km} km γύρω του, ανά {resp.scan.spacing_km} km
             {resp.scan.dense_km && resp.scan.fine_km && resp.scan.fine_km < resp.scan.spacing_km
-              ? ` και ανά ${resp.scan.fine_km} km ως ${resp.scan.dense_km} km από το κέντρο`
+              ? ` και ανά ${resp.scan.fine_km} km ως ${resp.scan.dense_km} km γύρω από την τοποθεσία σας`
               : ''}
             , κάθε{' '}
             {minutes(resp.scan.interval_min)}).

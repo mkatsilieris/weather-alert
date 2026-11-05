@@ -42,9 +42,9 @@ test('grid: points fill the circle, include the centre and stay inside the radiu
   for (const p of pts) assert.ok(haversineKm(athens, p) <= 101, `${p.lat},${p.lon} is outside`);
 });
 
-test('grid: the squares near the centre are split into smaller ones', () => {
+test('grid: the squares near a home are split into smaller ones', () => {
   const plain = gridPoints(athens, 100, 15);
-  const pts = gridPoints(athens, 100, 15, { radiusKm: 25, split: 3 });
+  const pts = gridPoints(athens, 100, 15, { around: [athens], radiusKm: 25, split: 3 });
   const fine = pts.filter((p) => p.sizeKm === 5);
   const coarse = pts.filter((p) => p.sizeKm === 15);
   // the 3x3 block of 15 km squares around the centre (their centres are within 21.2 km), each split in 9
@@ -57,4 +57,18 @@ test('grid: the squares near the centre are split into smaller ones', () => {
   for (const p of fine) assert.ok(haversineKm(athens, p) <= 25 + 15, `${p.lat},${p.lon} is too far`);
   // without a dense core every square keeps the outer size
   assert.ok(plain.every((p) => p.sizeKm === 15));
+});
+
+test('grid: the dense part follows the homes, and homes close together share it', () => {
+  const dense = (around: { lat: number; lon: number }[]) =>
+    gridPoints(athens, 100, 15, { around, radiusKm: 25, split: 3 }).filter((p) => p.sizeKm === 5);
+  const lavrio = fromLocalKm(athens, { x: 45, y: -45 }); // a lattice point 64 km south-east
+  const fine = dense([lavrio]);
+  assert.equal(fine.length, 81);
+  for (const p of fine) assert.ok(haversineKm(lavrio, p) <= 25 + 15, `${p.lat},${p.lon} is not near the home`);
+  assert.ok(fine.every((p) => haversineKm(athens, p) > 25), 'nothing dense around the centre itself');
+  // two far apart homes: two dense patches; two neighbours: one
+  assert.equal(dense([athens, lavrio]).length, 162);
+  assert.equal(dense([athens, fromLocalKm(athens, { x: 1, y: -2 })]).length, 81);
+  assert.equal(dense([]).length, 0);
 });

@@ -8,7 +8,7 @@ import { haversineKm } from '../lib/geo.js';
 import { mailConfigured } from '../mail.js';
 import { fetchJson } from '../weather/http.js';
 import { loadSettings, type Settings } from '../settings.js';
-import { evaluateUser, latestScan } from '../scanner.js';
+import { evaluateUser, latestScan, scanSoon } from '../scanner.js';
 
 /** The place a person watches and how they want to be told. */
 export const settingsRouter = Router();
@@ -77,6 +77,13 @@ settingsRouter.put('/', async (req, res) => {
     await evaluateUser(req.user.id, await latestScan(), { notify: true });
   } catch (err) {
     req.log.warn({ err, user: req.user.id }, 'could not re-evaluate after settings change');
+  }
+  // The grid is dense around the homes, so a home that moved gets a fresh scan (in the background).
+  const moved = haversineKm({ lat: current.home_lat, lon: current.home_lon }, { lat: next.home_lat, lon: next.home_lon });
+  if (moved > 5) {
+    scanSoon('manual')
+      .then((started) => req.log.info({ user: req.user.id, movedKm: Math.round(moved), started }, 'home moved, rescan'))
+      .catch((err) => req.log.warn({ err }, 'rescan after home change failed'));
   }
   res.json(envelope(rows[0]));
 });
