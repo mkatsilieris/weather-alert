@@ -42,7 +42,7 @@ jobs:
     needs: [api, web]
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v3
       # Verify the images build for Raspberry Pi (arm64) as well as amd64
       - run: docker buildx build --platform linux/amd64,linux/arm64 ./api
