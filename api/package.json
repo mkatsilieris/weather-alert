@@ -14,7 +14,7 @@
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "jose": "^6.2.14",
+    "jose": "^6.2.18",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^10.5.0",
     "pg": "^8.13.1",
